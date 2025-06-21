@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { View, FlatList, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
 import { fetchProducts } from "../data/mockAPI";
 import ProductCard from "../components/ProductCard";
 import SearchFilter from "../components/SearchFilter";
 import { useThemeContext } from "../context/ThemeContext";
 import { getWishlist, toggleWishlistItem } from "../utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
+
+const { width } = Dimensions.get("window");
+const CARD_MARGIN = 0;
+// const CARD_WIDTH = (width - CARD_MARGIN * 3) / 2; // 2 cards with margin
 
 const HomeScreen = ({ navigation }) => {
   const { theme } = useThemeContext();
@@ -15,12 +25,10 @@ const HomeScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState("");
   const [wishlistItems, setWishlistItems] = useState([]);
 
-  // Load products on mount
   useEffect(() => {
     loadProducts();
   }, []);
 
-  // Load wishlist on focus
   useFocusEffect(
     React.useCallback(() => {
       loadWishlist();
@@ -30,8 +38,8 @@ const HomeScreen = ({ navigation }) => {
   const loadProducts = async () => {
     try {
       const res = await fetchProducts();
-      setProducts(res.data);
-      setFiltered(res.data);
+      setProducts(res.data || res); // fallback for mock API shape
+      setFiltered(res.data || res);
     } catch (err) {
       console.error("Error loading products", err);
     } finally {
@@ -41,7 +49,7 @@ const HomeScreen = ({ navigation }) => {
 
   const loadWishlist = async () => {
     const list = await getWishlist();
-    setWishlistItems(list);
+    setWishlistItems(list || []);
   };
 
   const handleWishlistToggle = async (product) => {
@@ -49,15 +57,14 @@ const HomeScreen = ({ navigation }) => {
     setWishlistItems(updated);
   };
 
-  const isProductInWishlist = (product) => {
-    return wishlistItems.some((item) => item.id === product.id);
-  };
+  const CARD_SPACING = 12;
+  const CARD_WIDTH = (width - CARD_SPACING * 3) / 2;
 
   return (
     <View
       style={[
         styles.container,
-        { backgroundColor: theme === "dark" ? "#121212" : "#fff" },
+        { backgroundColor: theme === "dark" ? "#121212" : "#f2f2f2" },
       ]}
     >
       <SearchFilter
@@ -68,20 +75,30 @@ const HomeScreen = ({ navigation }) => {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#999" />
       ) : (
         <FlatList
+          key={2}
           data={filtered}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
           renderItem={({ item }) => (
             <ProductCard
               product={item}
               onPress={() =>
                 navigation.navigate("ProductDetail", { product: item })
               }
+              width={CARD_WIDTH} // 💡 pass exact width
             />
           )}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          columnWrapperStyle={{
+            justifyContent: "space-between",
+            marginBottom: CARD_SPACING,
+          }}
+          contentContainerStyle={{
+            paddingHorizontal: CARD_SPACING,
+            paddingBottom: 100,
+          }}
         />
       )}
     </View>
@@ -91,8 +108,15 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 15,
+    paddingHorizontal: CARD_MARGIN,
     paddingTop: 10,
+  },
+  row: {
+    justifyContent: "space-between",
+    marginBottom: CARD_MARGIN,
+  },
+  listContent: {
+    paddingBottom: 100,
   },
 });
 
